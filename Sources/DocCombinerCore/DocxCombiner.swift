@@ -270,8 +270,8 @@ public final class DocxCombiner: @unchecked Sendable {
 
             if relationship.targetMode?.lowercased() != "external",
                !relationship.target.looksLikeExternalTarget {
-                let sourcePartURL = resolvedRelationshipTarget(relationship.target, in: sourceDirectory)
-                guard fileManager.fileExists(atPath: sourcePartURL.path) else {
+                guard let sourcePartURL = resolvedRelationshipTarget(relationship.target, in: sourceDirectory),
+                      fileManager.fileExists(atPath: sourcePartURL.path) else {
                     throw DocxCombinationError.missingRelatedPart(relationship.target, sourceURL)
                 }
 
@@ -348,11 +348,19 @@ public final class DocxCombiner: @unchecked Sendable {
         return "combined"
     }
 
-    private func resolvedRelationshipTarget(_ target: String, in packageDirectory: URL) -> URL {
-        packageDirectory
+    private func resolvedRelationshipTarget(_ target: String, in packageDirectory: URL) -> URL? {
+        let packageURL = packageDirectory.standardizedFileURL
+        let resolvedURL = packageURL
             .appendingPathComponent("word", isDirectory: true)
             .appendingPathComponent(target.removingFragment)
             .standardizedFileURL
+
+        let packagePath = packageURL.path
+        guard resolvedURL.path.hasPrefix(packagePath + "/") else {
+            return nil
+        }
+
+        return resolvedURL
     }
 
     private func packagePartName(for url: URL, packageDirectory: URL) -> String {
