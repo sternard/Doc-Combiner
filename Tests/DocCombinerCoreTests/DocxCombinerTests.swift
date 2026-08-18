@@ -120,6 +120,30 @@ final class DocxCombinerTests: XCTestCase {
         }
     }
 
+    func testRejectsRelationshipTargetsOutsideExtractedPackage() throws {
+        let first = try makeDocx(name: "First", bodyBlocks: paragraph("First"))
+        let target = "../../base/word/document.xml"
+        let second = try makeDocx(
+            name: "Second",
+            bodyBlocks: "<w:p><w:hyperlink r:id=\"rId5\"/></w:p>",
+            relationships: [
+                TestRelationship(
+                    id: "rId5",
+                    type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+                    target: target
+                )
+            ]
+        )
+        let output = temporaryDirectory.appendingPathComponent("Combined.docx")
+
+        XCTAssertThrowsError(try DocxCombiner().combine([first, second], destinationURL: output)) { error in
+            XCTAssertEqual(
+                error as? DocxCombinationError,
+                .missingRelatedPart(target, second.standardizedFileURL)
+            )
+        }
+    }
+
     private func makeDocx(
         name: String,
         bodyBlocks: String,

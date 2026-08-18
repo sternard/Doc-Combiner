@@ -12,9 +12,11 @@ struct ZipArchive {
     func createArchive(from directoryURL: URL, at archiveURL: URL) throws {
         let parentURL = archiveURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: parentURL, withIntermediateDirectories: true)
-
-        if fileManager.fileExists(atPath: archiveURL.path) {
-            try fileManager.removeItem(at: archiveURL)
+        let temporaryURL = parentURL.appendingPathComponent(
+            ".\(archiveURL.lastPathComponent).\(UUID().uuidString).tmp"
+        )
+        defer {
+            try? fileManager.removeItem(at: temporaryURL)
         }
 
         try runDitto(arguments: [
@@ -23,8 +25,14 @@ struct ZipArchive {
             "--sequesterRsrc",
             "--norsrc",
             directoryURL.path,
-            archiveURL.path
+            temporaryURL.path
         ])
+
+        if fileManager.fileExists(atPath: archiveURL.path) {
+            _ = try fileManager.replaceItemAt(archiveURL, withItemAt: temporaryURL)
+        } else {
+            try fileManager.moveItem(at: temporaryURL, to: archiveURL)
+        }
     }
 
     private func runDitto(arguments: [String]) throws {
